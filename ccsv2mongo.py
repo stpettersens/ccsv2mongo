@@ -14,7 +14,7 @@ import os
 import re
 import argparse
 
-signature = 'ccsv2mongo 1.0 (https://github.com/stpettersens/ccsv2mongo)'
+signature = 'ccsv2mongo 1.0.1 (https://github.com/stpettersens/ccsv2mongo)'
 
 def displayVersion():
 	print('\n' + signature)
@@ -22,7 +22,7 @@ def displayVersion():
 def displayInfo():
 	print(__doc__)
 
-def ccsv2mongo(file, out, separator, verbose, version, info):
+def ccsv2mongo(file, out, separator, mongotypes, array, verbose, version, info):
 
 	if len(sys.argv) == 1:
 		displayInfo()
@@ -46,6 +46,10 @@ def ccsv2mongo(file, out, separator, verbose, version, info):
 	if out.endswith('.json') == False:
 		print('Output file is not a JSON file.')
 		sys.exit(1)
+
+	if mongotypes == None: mongotypes = True
+
+	if array == None: array = False
 
 	head, tail = os.path.split(file)
 	collection = re.sub('.csv', '', tail)
@@ -79,10 +83,13 @@ def ccsv2mongo(file, out, separator, verbose, version, info):
 
 				if value.startswith('ObjectId('):
 					value = re.sub('ObjectId\(|\)', '', value)
-					value = '{"$oid":"' + value + '"}'
+					if mongotypes:
+						value = '{"$oid":"' + value + '"}'
+					else:
+						value = '"' + value + '"'
 
 				pattern = re.compile('\d{4}\-\d{2}\-\d{2}')
-				if pattern.match(value):
+				if pattern.match(value) and mongotypes:
 					value = '{"$date":"' + value + '"}'
 
 				else: value = '"' + value + '"'
@@ -117,12 +124,22 @@ def ccsv2mongo(file, out, separator, verbose, version, info):
 		.format(out, file))
 
 	f = open(out, 'w')
+	ac = ''
+	if array:
+		ac = ','
+		f.write('[\n')
+
+	x = 0
 	for record in rrecords:
 		record = re.sub('@@', ',', record)
 		record = re.sub('\"{', '{', record)
 		record = re.sub('}\"', '}', record)
-		record = '{' + record + '}'
+		if x == len(rrecords) - 1: ac = ''
+		record = '{' + record + '}' + ac
 		f.write(record + '\n')
+		x = x + 1
+
+	if array: f.write(']\n')
 
 	f.close()
 
@@ -132,9 +149,11 @@ parser = argparse.ArgumentParser(description='Utility to convert a CSV file to a
 parser.add_argument('-f', '--file', action='store', dest='file', metavar="FILE")
 parser.add_argument('-o', '--out', action='store', dest='out', metavar="OUT")
 parser.add_argument('-s', '--separator', action='store', dest='separator', metavar="SEPARATOR")
+parser.add_argument('-n', '--no-mongo-types', action='store_false', dest='mongotypes')
+parser.add_argument('-a', '--array', action='store_true', dest='array')
 parser.add_argument('-l', '--verbose', action='store_true', dest='verbose')
 parser.add_argument('-v', '--version', action='store_true', dest='version')
 parser.add_argument('-i', '--info', action='store_true', dest='info')
 argv = parser.parse_args()
 
-ccsv2mongo(argv.file, argv.out, argv.separator, argv.verbose, argv.version, argv.info)
+ccsv2mongo(argv.file, argv.out, argv.separator, argv.mongotypes, argv.array, argv.verbose, argv.version, argv.info)
