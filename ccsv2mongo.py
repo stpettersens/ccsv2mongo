@@ -86,11 +86,15 @@ def ccsv2mongo(file, out, separator, mongotypes, array, verbose, version, info):
 					if mongotypes:
 						value = '{"$oid":"' + value + '"}'
 					else:
-						value = value
+						value = '"' + value + '"'
 
 				pattern = re.compile('\d{4}\-\d{2}\-\d{2}')
 				if pattern.match(value) and mongotypes:
 					value = '{"$date":"' + value + '"}'
+
+				pattern = re.compile('true|false|null', re.IGNORECASE)
+				if pattern.match(value):
+					value = value
 
 				else: value = '"' + value + '"'
 
@@ -124,28 +128,22 @@ def ccsv2mongo(file, out, separator, mongotypes, array, verbose, version, info):
 		.format(out, file))
 
 	f = open(out, 'w')
+	ac = ''
 	if array:
-		json = '['
-		x = 0
-		for record in rrecords:
-                        ac = ','
-                        if x == len(rrecords) - 1: ac = ''
-                        record = re.sub('@@', ',', record)
-                        record = re.sub('\"{', '{', record)
-                        record = re.sub('}\"', '}', record)
-                        json += '{' + record + '}' + ac
-                        x = x + 1
-                        
-                json += ']'
-                f.write(json)
-                        
-        else:
-                for record in rrecords:
-                        record = re.sub('@@', ',', record)
-                        record = re.sub('\"{', '{', record)
-                        record = re.sub('}\"', '}', record)
-                        record = '{' + record + '}'
-                        f.write(record + '\n')
+		ac = ','
+		f.write('[\n')
+
+	x = 0
+	for record in rrecords:
+		record = re.sub('@@', ',', record)
+		record = re.sub('\"{', '{', record)
+		record = re.sub('}\"', '}', record)
+		if x == len(rrecords) - 1: ac = ''
+		record = '{' + record + '}' + ac
+		f.write(record + '\n')
+		x = x + 1
+
+	if array: f.write(']\n')
 
 	f.close()
 
